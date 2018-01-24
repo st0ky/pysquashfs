@@ -1,4 +1,5 @@
-squashfs-tools/
 fs.txt
 *.deb
 *.xz
+*lextab.py
+*yacctab.py
