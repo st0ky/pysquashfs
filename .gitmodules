@@ -1,3 +1,3 @@
 [submodule "src/cstruct2py"]
 	path = src/cstruct2py
-	url = C:\\binyam\\cstruct2py
+	url = https://github.com/st0ky/cstruct2py.git
