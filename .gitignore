@@ -3,3 +3,5 @@ fs.txt
 *.xz
 *lextab.py
 *yacctab.py
+
+tmp\.h
