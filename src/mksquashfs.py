@@ -1,13 +1,18 @@
 from time import localtime
-import cstruct2py
-import cstruct2py.c2py as types
 import os
+import sys
+here = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(here, "cstruct2py"))
+import cstruct2py
 
-squashfs_tools_src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "squashfs-tools")
+squashfs_tools_src = os.path.join(here, "..", "squashfs-tools")
 
 import IPython
-# IPython.embed()
-types.parse_file("./includes.h", [squashfs_tools_src, r"C:\binyam\squashfs\src\cstruct2py\pycparser\utils\fake_libc_include"], save_tmp=True, debuglevel=0)
+try:
+	parser = cstruct2py.c2py.Parser()
+	parser.parse_file("./includes.h", [squashfs_tools_src, os.path.join(here, "include"), os.path.join(here, "cstruct2py", "cstruct2py", "pycparser", "utils", "fake_libc_include")])
+finally:
+	IPython.embed()
 from types import *
 
 premission_table = [
@@ -92,52 +97,52 @@ class SquashFS(object):
 		self.sBlk.guid_start = sBlk_3.guid_start
 		self.sBlk.s.xattr_id_table_start = SQUASHFS_INVALID_BLK
 
-		/* Check the MAJOR & MINOR versions */
-	if(sBlk.s.s_major == 1 || sBlk.s.s_major == 2) {
-		sBlk.s.bytes_used = sBlk_3.bytes_used_2;
-		sBlk.uid_start = sBlk_3.uid_start_2;
-		sBlk.guid_start = sBlk_3.guid_start_2;
-		sBlk.s.inode_table_start = sBlk_3.inode_table_start_2;
-		sBlk.s.directory_table_start = sBlk_3.directory_table_start_2;
+# 		/* Check the MAJOR & MINOR versions */
+# 	if(sBlk.s.s_major == 1 || sBlk.s.s_major == 2) {
+# 		sBlk.s.bytes_used = sBlk_3.bytes_used_2;
+# 		sBlk.uid_start = sBlk_3.uid_start_2;
+# 		sBlk.guid_start = sBlk_3.guid_start_2;
+# 		sBlk.s.inode_table_start = sBlk_3.inode_table_start_2;
+# 		sBlk.s.directory_table_start = sBlk_3.directory_table_start_2;
 		
-		if(sBlk.s.s_major == 1) {
-			sBlk.s.block_size = sBlk_3.block_size_1;
-			sBlk.s.fragment_table_start = sBlk.uid_start;
-			s_ops.squashfs_opendir = squashfs_opendir_1;
-			s_ops.read_fragment_table = read_fragment_table_1;
-			s_ops.read_block_list = read_block_list_1;
-			s_ops.read_inode = read_inode_1;
-			s_ops.read_uids_guids = read_uids_guids_1;
-		} else {
-			sBlk.s.fragment_table_start =
-				sBlk_3.fragment_table_start_2;
-			s_ops.squashfs_opendir = squashfs_opendir_1;
-			s_ops.read_fragment = read_fragment_2;
-			s_ops.read_fragment_table = read_fragment_table_2;
-			s_ops.read_block_list = read_block_list_2;
-			s_ops.read_inode = read_inode_2;
-			s_ops.read_uids_guids = read_uids_guids_1;
-		}
-	} else if(sBlk.s.s_major == 3) {
-		s_ops.squashfs_opendir = squashfs_opendir_3;
-		s_ops.read_fragment = read_fragment_3;
-		s_ops.read_fragment_table = read_fragment_table_3;
-		s_ops.read_block_list = read_block_list_2;
-		s_ops.read_inode = read_inode_3;
-		s_ops.read_uids_guids = read_uids_guids_1;
-		else:
-			raise ValueError("Filesystem on %s is (%d:%d), " % (source, sBlk.s.s_major, sBlk.s.s_minor) + "which is a later filesystem version than I support!\n")
-		goto failed_mount;
-	}
+# 		if(sBlk.s.s_major == 1) {
+# 			sBlk.s.block_size = sBlk_3.block_size_1;
+# 			sBlk.s.fragment_table_start = sBlk.uid_start;
+# 			s_ops.squashfs_opendir = squashfs_opendir_1;
+# 			s_ops.read_fragment_table = read_fragment_table_1;
+# 			s_ops.read_block_list = read_block_list_1;
+# 			s_ops.read_inode = read_inode_1;
+# 			s_ops.read_uids_guids = read_uids_guids_1;
+# 		} else {
+# 			sBlk.s.fragment_table_start =
+# 				sBlk_3.fragment_table_start_2;
+# 			s_ops.squashfs_opendir = squashfs_opendir_1;
+# 			s_ops.read_fragment = read_fragment_2;
+# 			s_ops.read_fragment_table = read_fragment_table_2;
+# 			s_ops.read_block_list = read_block_list_2;
+# 			s_ops.read_inode = read_inode_2;
+# 			s_ops.read_uids_guids = read_uids_guids_1;
+# 		}
+# 	} else if(sBlk.s.s_major == 3) {
+# 		s_ops.squashfs_opendir = squashfs_opendir_3;
+# 		s_ops.read_fragment = read_fragment_3;
+# 		s_ops.read_fragment_table = read_fragment_table_3;
+# 		s_ops.read_block_list = read_block_list_2;
+# 		s_ops.read_inode = read_inode_3;
+# 		s_ops.read_uids_guids = read_uids_guids_1;
+# 		else:
+# 			raise ValueError("Filesystem on %s is (%d:%d), " % (source, sBlk.s.s_major, sBlk.s.s_minor) + "which is a later filesystem version than I support!\n")
+# 		goto failed_mount;
+# 	}
 
-	/*
-	 * 1.x, 2.x and 3.x filesystems use gzip compression.
-	 */
-	comp = lookup_compressor("gzip");
-	return TRUE;
+# 	/*
+# 	 * 1.x, 2.x and 3.x filesystems use gzip compression.
+# 	 */
+# 	comp = lookup_compressor("gzip");
+# 	return TRUE;
 
-failed_mount:
-	return FALSE;
+# failed_mount:
+# 	return FALSE;
 
 
 
@@ -146,8 +151,8 @@ failed_mount:
 
 		t = localtime(inode.time)
 
-		print "%d-%02d-%02d %02d:%02d %s" % (t->tm_year + 1900, t->tm_mon + 1,
-					t->tm_mday, t->tm_hour, t->tm_min, pathname)
+		# print "%d-%02d-%02d %02d:%02d %s" % (t->tm_year + 1900, t->tm_mon + 1,
+		# 			t->tm_mday, t->tm_hour, t->tm_min, pathname)
 
 		# if((inode->mode & S_IFMT) == S_IFLNK)
 		# printf(" -> %s", inode->symlink);
