@@ -8,12 +8,16 @@ import cstruct2py
 squashfs_tools_src = os.path.join(here, "..", "squashfs-tools")
 
 import IPython
-try:
-	parser = cstruct2py.c2py.Parser()
-	parser.parse_file("./includes.h", [squashfs_tools_src, os.path.join(here, "include"), os.path.join(here, "cstruct2py", "cstruct2py", "pycparser", "utils", "fake_libc_include")])
-finally:
-	IPython.embed()
-from types import *
+
+
+types_le = cstruct2py.c2py.Parser(cstruct2py.configuration.gcc_x86_64_le)
+types_le.parse_file("./includes.h", [squashfs_tools_src, os.path.join(here, "include"), os.path.join(here, "cstruct2py", "cstruct2py", "pycparser", "utils", "fake_libc_include")])
+types_le.update_globals(globals())
+types_be = cstruct2py.c2py.Parser(cstruct2py.configuration.gcc_x86_64_be)
+types_be.parse_file("./includes.h", [squashfs_tools_src, os.path.join(here, "include"), os.path.join(here, "cstruct2py", "cstruct2py", "pycparser", "utils", "fake_libc_include")])
+types_be.update_globals(types_le.__dict__)
+
+# IPython.embed()
 
 premission_table = [
 	test(mask=S_IFMT, value=S_IFSOCK, position=0, mode='s' ),
