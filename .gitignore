@@ -5,3 +5,5 @@ fs.txt
 *yacctab.py
 
 tmp\.h
+
+*.pyc

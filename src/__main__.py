@@ -1,6 +1,11 @@
 from time import localtime
 import os
 import sys
+from squashfs_operations_1 import SquashFSOps1
+from squashfs_operations_2 import SquashFSOps2
+from squashfs_operations_3 import SquashFSOps3
+from squashfs_operations_4 import SquashFSOps4
+
 here = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(here, "cstruct2py"))
 import cstruct2py
@@ -49,6 +54,7 @@ class SquashFS(object):
 		self.source = filename
 		self.data = None
 		self.sBlk = super_block()
+		self.s_ops = squashfs_operations()
 		self.swap = None
 		self.comp = None
 		self.funcs = type("\x01", (object,), {})()
@@ -64,89 +70,91 @@ class SquashFS(object):
 		
 		self.swap = sBlk_4.s_magic != SQUASHFS_MAGIC
 		if sBlk_4.s_magic == SQUASHFS_MAGIC and sBlk_4.s_major == 4 and sBlk_4.s_minor == 0:
-			self.funcs.squashfs_opendir = SquashFS.squashfs_opendir_4;
-			self.funcs.read_fragment = SquashFS.read_fragment_4;
-			self.funcs.read_fragment_table = SquashFS.read_fragment_table_4;
-			self.funcs.read_block_list = SquashFS.read_block_list_2;
-			self.funcs.read_inode = SquashFS.read_inode_4;
-			self.funcs.read_uids_guids = SquashFS.read_uids_guids_4;
+			self.funcs.squashfs_opendir = SquashFSOps4.squashfs_opendir
+			self.funcs.read_fragment = SquashFSOps4.read_fragment
+			self.funcs.read_fragment_table = SquashFSOps4.read_fragment_table
+			self.funcs.read_block_list = SquashFS.read_block_list_2
+			self.funcs.read_inode = SquashFSOps4.read_inode
+			self.funcs.read_uids_guids = SquashFSOps4.read_uids_guids
 			self.sBlk.s = sBlk_4
-			# self.comp = lookup_compressor_id(sBlk.s.compression);
+			# self.comp = lookup_compressor_id(sBlk.s.compression)
 			self.comp = sBlk.s.compression
 			return True
 
 		sBlk_3 = squashfs_super_block_3(self.data, SQUASHFS_START)
 		if sBlk_3.s_magic != SQUASHFS_MAGIC:
 			assert sBlk_3.s_magic == SQUASHFS_MAGIC_SWAP, "Can't find a SQUASHFS superblock on %s" % self.source
-			raise NotImplemented("need to implement endiannes")
+			sBlk_3 = types_be.squashfs_super_block_3(self.data, SQUASHFS_START)
+			# raise NotImplemented("need to implement endiannes")
 
-		self.sBlk.s.s_magic = sBlk_3.s_magic
-		self.sBlk.s.inodes = sBlk_3.inodes
-		self.sBlk.s.mkfs_time = sBlk_3.mkfs_time
-		self.sBlk.s.block_size = sBlk_3.block_size
-		self.sBlk.s.fragments = sBlk_3.fragments
-		self.sBlk.s.block_log = sBlk_3.block_log
-		self.sBlk.s.flags = sBlk_3.flags
-		self.sBlk.s.s_major = sBlk_3.s_major
-		self.sBlk.s.s_minor = sBlk_3.s_minor
-		self.sBlk.s.root_inode = sBlk_3.root_inode
-		self.sBlk.s.bytes_used = sBlk_3.bytes_used
-		self.sBlk.s.inode_table_start = sBlk_3.inode_table_start
-		self.sBlk.s.directory_table_start = sBlk_3.directory_table_start
-		self.sBlk.s.fragment_table_start = sBlk_3.fragment_table_start
-		self.sBlk.s.lookup_table_start = sBlk_3.lookup_table_start
-		self.sBlk.no_uids = sBlk_3.no_uids
-		self.sBlk.no_guids = sBlk_3.no_guids
-		self.sBlk.uid_start = sBlk_3.uid_start
-		self.sBlk.guid_start = sBlk_3.guid_start
-		self.sBlk.s.xattr_id_table_start = SQUASHFS_INVALID_BLK
+		sBlk = self.sBlk
+		sBlk.s.s_magic = sBlk_3.s_magic
+		sBlk.s.inodes = sBlk_3.inodes
+		sBlk.s.mkfs_time = sBlk_3.mkfs_time
+		sBlk.s.block_size = sBlk_3.block_size
+		sBlk.s.fragments = sBlk_3.fragments
+		sBlk.s.block_log = sBlk_3.block_log
+		sBlk.s.flags = sBlk_3.flags
+		sBlk.s.s_major = sBlk_3.s_major
+		sBlk.s.s_minor = sBlk_3.s_minor
+		sBlk.s.root_inode = sBlk_3.root_inode
+		sBlk.s.bytes_used = sBlk_3.bytes_used
+		sBlk.s.inode_table_start = sBlk_3.inode_table_start
+		sBlk.s.directory_table_start = sBlk_3.directory_table_start
+		sBlk.s.fragment_table_start = sBlk_3.fragment_table_start
+		sBlk.s.lookup_table_start = sBlk_3.lookup_table_start
+		sBlk.no_uids = sBlk_3.no_uids
+		sBlk.no_guids = sBlk_3.no_guids
+		sBlk.uid_start = sBlk_3.uid_start
+		sBlk.guid_start = sBlk_3.guid_start
+		sBlk.s.xattr_id_table_start = SQUASHFS_INVALID_BLK
 
 # 		/* Check the MAJOR & MINOR versions */
-# 	if(sBlk.s.s_major == 1 || sBlk.s.s_major == 2) {
-# 		sBlk.s.bytes_used = sBlk_3.bytes_used_2;
-# 		sBlk.uid_start = sBlk_3.uid_start_2;
-# 		sBlk.guid_start = sBlk_3.guid_start_2;
-# 		sBlk.s.inode_table_start = sBlk_3.inode_table_start_2;
-# 		sBlk.s.directory_table_start = sBlk_3.directory_table_start_2;
+		s_ops = self.s_ops
+		if sBlk.s.s_major == 1 or sBlk.s.s_major == 2:
+			sBlk.s.bytes_used = sBlk_3.bytes_used_2
+			sBlk.uid_start = sBlk_3.uid_start_2
+			sBlk.guid_start = sBlk_3.guid_start_2
+			sBlk.s.inode_table_start = sBlk_3.inode_table_start_2
+			sBlk.s.directory_table_start = sBlk_3.directory_table_start_2
 		
-# 		if(sBlk.s.s_major == 1) {
-# 			sBlk.s.block_size = sBlk_3.block_size_1;
-# 			sBlk.s.fragment_table_start = sBlk.uid_start;
-# 			s_ops.squashfs_opendir = squashfs_opendir_1;
-# 			s_ops.read_fragment_table = read_fragment_table_1;
-# 			s_ops.read_block_list = read_block_list_1;
-# 			s_ops.read_inode = read_inode_1;
-# 			s_ops.read_uids_guids = read_uids_guids_1;
-# 		} else {
-# 			sBlk.s.fragment_table_start =
-# 				sBlk_3.fragment_table_start_2;
-# 			s_ops.squashfs_opendir = squashfs_opendir_1;
-# 			s_ops.read_fragment = read_fragment_2;
-# 			s_ops.read_fragment_table = read_fragment_table_2;
-# 			s_ops.read_block_list = read_block_list_2;
-# 			s_ops.read_inode = read_inode_2;
-# 			s_ops.read_uids_guids = read_uids_guids_1;
-# 		}
-# 	} else if(sBlk.s.s_major == 3) {
-# 		s_ops.squashfs_opendir = squashfs_opendir_3;
-# 		s_ops.read_fragment = read_fragment_3;
-# 		s_ops.read_fragment_table = read_fragment_table_3;
-# 		s_ops.read_block_list = read_block_list_2;
-# 		s_ops.read_inode = read_inode_3;
-# 		s_ops.read_uids_guids = read_uids_guids_1;
-# 		else:
-# 			raise ValueError("Filesystem on %s is (%d:%d), " % (source, sBlk.s.s_major, sBlk.s.s_minor) + "which is a later filesystem version than I support!\n")
-# 		goto failed_mount;
-# 	}
+			if sBlk.s.s_major == 1:
+				sBlk.s.block_size = sBlk_3.block_size_1
+				sBlk.s.fragment_table_start = sBlk.uid_start
+				self.funcs.squashfs_opendir = SquashFSOps1.squashfs_opendir
+				self.funcs.read_fragment_table = SquashFSOps1.read_fragment_table
+				self.funcs.read_block_list = SquashFSOps1.read_block_list
+				self.funcs.read_inode = SquashFSOps1.read_inode
+				self.funcs.read_uids_guids = SquashFSOps1.read_uids_guids
+
+			else:
+				sBlk.s.fragment_table_start = sBlk_3.fragment_table_start_2
+				self.funcs.squashfs_opendir = SquashFSOps1.squashfs_opendir
+				self.funcs.read_fragment = SquashFSOps2.read_fragment
+				self.funcs.read_fragment_table = SquashFSOps2.read_fragment_table
+				self.funcs.read_block_list = SquashFSOps2.read_block_list
+				self.funcs.read_inode = SquashFSOps2.read_inode
+				self.funcs.read_uids_guids = SquashFSOps1.read_uids_guids
+
+		elif sBlk.s.s_major == 3:
+			self.funcs.squashfs_opendir = SquashFSOps3.squashfs_opendir
+			self.funcs.read_fragment = SquashFSOps3.read_fragment
+			self.funcs.read_fragment_table = SquashFSOps3.read_fragment_table
+			self.funcs.read_block_list = SquashFSOps2.read_block_list
+			self.funcs.read_inode = SquashFSOps3.read_inode
+			self.funcs.read_uids_guids = SquashFSOps1.read_uids_guids
+
+		else:
+			raise ValueError("Filesystem on %s is (%d:%d), " % (source, sBlk.s.s_major, sBlk.s.s_minor) + "which is a later filesystem version than I support!\n")
 
 # 	/*
 # 	 * 1.x, 2.x and 3.x filesystems use gzip compression.
 # 	 */
-# 	comp = lookup_compressor("gzip");
-# 	return TRUE;
+# 	comp = lookup_compressor("gzip")
+		return True
 
 # failed_mount:
-# 	return FALSE;
+# 	return FALSE
 
 
 
@@ -159,7 +167,7 @@ class SquashFS(object):
 		# 			t->tm_mday, t->tm_hour, t->tm_min, pathname)
 
 		# if((inode->mode & S_IFMT) == S_IFLNK)
-		# printf(" -> %s", inode->symlink);
+		# printf(" -> %s", inode->symlink)
 
 
 	@staticmethod
