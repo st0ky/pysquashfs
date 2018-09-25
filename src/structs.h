@@ -119,26 +119,60 @@ typedef struct basicsocket {
     u32 nlink;
 }basic_socket;
 
+//extended blocks
 typedef struct extendeddirectory {
     inode_header header;
+    u32 nlink;
+    u32 file_size;
+    u32 start_block;
+    u32 parent_inode_number;
+    u16 index_count;
+    u16 offset;
+    u32 xattr_index;
 } extended_directory;
 
 typedef struct extendedfile {
     inode_header header;
+    u64 blocks_start;
+    u64 file_size;
+    u64 sparse;
+    u32 nlink;
+    u32 fragment_block_index;
+    u32 fragment_offset;
+    u32 xattr_index;
+    u32 block_sizes;
 } extended_file;
 
 typedef struct extendedsymlink {
     inode_header header;
+    u32 nlink;
+    u32 target_size;
+    u8 target_path;
+    u32 xattr_index;
 } extended_symlink;
 
 typedef struct extendedblockdevice {
     inode_header header;
+    u32 nlink;
+    u32 device;
+    u32 xattr_index;
 } extended_block_device;
 
 typedef struct extendedchardevice {
     inode_header header;
+    u32 nlink;
+    u32 device;
+    u32 xattr_index;
 } extended_char_device;
+
+typedef struct extendedfifo {
+    inode_header header;
+    u32 nlink;
+    u32 xattr_index;
+} extended_fifo;
 
 typedef struct extendedsocket {
     inode_header header;
+    u32 nlink;
+    u32 xattr_index;
 }extended_socket;
