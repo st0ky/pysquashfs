@@ -139,6 +139,6 @@ typedef struct extendedchardevice {
     inode_header header;
 } extended_char_device;
 
-typedef struct xtendedsocket {
+typedef struct extendedsocket {
     inode_header header;
-}xtended_socket;
+}extended_socket;
