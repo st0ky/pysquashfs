@@ -41,14 +41,14 @@ enum {
 };
 
 //compression ids
-enum{
+enum {
 	GZIP = 1,
 	LZMA,
 	LZO,
 	XZ,
 	LZ4,
 	ZSTD
-}
+};
 
 
 //structs
