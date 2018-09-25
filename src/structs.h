@@ -66,6 +66,7 @@ typedef struct superblock {
     u16 version_major;
     u16 version_minor;
     u64 root_inod_ref;
+    u64 bytes_used;
     u64 id_table_start;
     u64 xattr_id_table_start;
     u64 inode_table_start;
