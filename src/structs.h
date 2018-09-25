@@ -175,4 +175,4 @@ typedef struct extendedsocket {
     inode_header header;
     u32 nlink;
     u32 xattr_index;
-}extended_socket;
+} extended_socket;
