@@ -40,7 +40,19 @@ enum {
     XTENDED_SOCKET
 };
 
+//compression ids
+enum{
+	GZIP = 1,
+	LZMA,
+	LZO,
+	XZ,
+	LZ4,
+	ZSTD
+}
 
+
+//structs
+	//super block
 typedef struct superblock {
     u32 magic;
     u32 inode_count;
@@ -62,12 +74,35 @@ typedef struct superblock {
     u64 export_table_start;
 } super_block;
 
+	//compression options
+typedef struct GZIPcompression{
+	i32 compression_level;
+	i16 window_size;
+	i16 strategies;
+}GZIP_comression;
+
+typedef struct XZcompression{
+	i32 dictionary_size;
+	i32 executable_filters;
+}XZ_compression;
+
+typedef struct LZ4compression{
+	i32 version;
+	i32 flags;
+}LZ4_compression;
+
+typedef struct ZSTDcompression{
+	i32 compression_level;
+}ZSTD_compression;
+
+	//inodes
+		//basic blocks
 typedef struct inodeheader {
     u16 inode_type;
     u16 permission;
     u16 uid_idx;
     u16 gid_idx;
-    i32 modiied_time;
+    i32 modified_time;
     u32 inode_number;
 } inode_header;
 
@@ -119,7 +154,7 @@ typedef struct basicsocket {
     u32 nlink;
 }basic_socket;
 
-//extended blocks
+		//extended blocks
 typedef struct extendeddirectory {
     inode_header header;
     u32 nlink;
@@ -176,3 +211,10 @@ typedef struct extendedsocket {
     u32 nlink;
     u32 xattr_index;
 } extended_socket;
+
+	//fragments
+typedef struct fragmentblockentry{
+	u64 start;
+	u32 size;
+	u32 unused;
+}fragment_block_entry;
