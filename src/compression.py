@@ -4,6 +4,12 @@ class GZipCompressor(object):
 	"""docstring for GZipCompressor"""
 	def __init__(self):
 		super(GZipCompressor, self).__init__()
+		import zlib
+
+	def decompress(self, data):
+		import zlib
+		return zlib.decompress(data)
+
 
 class NotImplementedCompressor(object):
 	"""docstring for NotImplementedCompressor"""
