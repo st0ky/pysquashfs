@@ -51,6 +51,11 @@ enum compression_enum {
 	ZSTD
 };
 
+typedef struct inoderef {
+    u16 offset;
+    u32 block_offset;
+    u16 unused;
+} inode_ref;
 
 //structs
 	//super block
@@ -66,7 +71,7 @@ typedef struct superblock {
     u16 id_count;
     u16 version_major;
     u16 version_minor;
-    u64 root_inod_ref;
+    inode_ref root_inod_ref;
     u64 bytes_used;
     u64 id_table_start;
     u64 xattr_id_table_start;
@@ -124,14 +129,14 @@ typedef struct basicfile {
     u32 fragment_block_index;
     u32 fragment_offset;
     u32 file_size;
-    u32 block_sizes;
+    u32 block_sizes[];
 } basic_file;
 
 typedef struct basicsymlink {
     inode_header header;
     u32 nlink;
     u32 target_size;
-    u8 target_path;
+    u8 target_path[];
 } basic_symlink;
 
 typedef struct basicblockdevice {
@@ -177,14 +182,14 @@ typedef struct extendedfile {
     u32 fragment_block_index;
     u32 fragment_offset;
     u32 xattr_index;
-    u32 block_sizes;
+    u32 block_sizes[];
 } extended_file;
 
 typedef struct extendedsymlink {
     inode_header header;
     u32 nlink;
     u32 target_size;
-    u8 target_path;
+    u8 target_path[];
     u32 xattr_index;
 } extended_symlink;
 
