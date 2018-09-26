@@ -26,4 +26,19 @@ class SquashfsImage(object):
 		pass
 
 	def _read_metadata_block(self, fil_offset, size, offset=0):
-		pass
+		self.fil.seek(fil_offset)
+		data = ""
+
+		while len(data) - offset < size:
+			l = u16(self.fil.read(len(u16)))._val_property
+			print hex(l)
+			print hex(l & (0x8000 - 1))
+			tmp = self.fil.read(l & (0x8000 - 1))
+
+			if not l & 0x8000:
+				tmp = self.comp.decompress(data)
+
+			data += tmp
+
+		return data
+
