@@ -7,6 +7,7 @@ typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
 
+#define SQUASHFS_MAGIC         (0x73717368)
 
 //Superblock Flags
 #define UNCOMPRESSED_INODES    (0x0001)            //Inodes are stored uncompressed. For backward compatibility reasons, UID/GIDs are also stored uncompressed.
@@ -41,11 +42,11 @@ enum {
 };
 
 //compression ids
-enum {
+enum compression_enum {
 	GZIP = 1,
 	LZMA,
-	LZO,
-	XZ,
+    LZO,
+    XZ,
 	LZ4,
 	ZSTD
 };
