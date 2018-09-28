@@ -38,7 +38,7 @@ enum {
     EXTENDED_BLOCK_DEVICE,
     EXTENDED_CHAR_DEVICE,
     EXTENDED_FIFO,
-    XTENDED_SOCKET
+    EXTENDED_SOCKET
 };
 
 //compression ids
