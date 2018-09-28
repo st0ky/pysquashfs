@@ -33,6 +33,12 @@ class SquashfsImage(object):
     def get_all_pathes(self):
         pass
 
+    def get_file_content(self, path):
+        pass
+
+    def list_dir(self, path):
+        pass
+
     def _read_metadata_block(self, fil_offset):
         if fil_offset in self._block_cache:
             return self._block_cache[fil_offset]
@@ -61,14 +67,14 @@ class SquashfsImage(object):
 
     def _read_inode(self, block_offset, offset):
         block_offset = block_offset*self.superblock.block_size + self.superblock.inode_table_start
-        if (fil_offset, offset) in self._inode_cache:
-            return self._inode_cache[(fil_offset, offset)]
+        if (block_offset, offset) in self._inode_cache:
+            return self._inode_cache[(block_offset, offset)]
 
-        data = self._read_metadata(fil_offset, len(inode_header) + 0x50, offset) # we read more data for the large inodes
+        data = self._read_metadata(block_offset, len(inode_header) + 0x50, offset) # we read more data for the large inodes
         header = inode_header(data)
         inode = inode_map[header.inode_type](data)
 
-        self._inode_cache[(fil_offset, offset)] = inode
+        self._inode_cache[(block_offset, offset)] = inode
         self._inode_cache[inode.header.inode_number] = inode
 
         return inode
