@@ -59,8 +59,8 @@ class SquashfsImage(object):
         
         return data[offset:]
 
-    def _read_inode(self, fil_offset, offset):
-        fil_offset += self.superblock.inode_table_start
+    def _read_inode(self, block_offset, offset):
+        block_offset = block_offset*self.superblock.block_size + self.superblock.inode_table_start
         if (fil_offset, offset) in self._inode_cache:
             return self._inode_cache[(fil_offset, offset)]
 
