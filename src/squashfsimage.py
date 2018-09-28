@@ -2,43 +2,53 @@ from .types import *
 from .compression import comp_map
 
 class SquashfsImage(object):
-	"""docstring for SquashfsImage"""
-	def __init__(self, path):
-		super(SquashfsImage, self).__init__()
-		self.path = path
+    """docstring for SquashfsImage"""
+    def __init__(self, path):
+        super(SquashfsImage, self).__init__()
+        self.path = path
+        self._block_cache = {}
 
-		self.fil = open(self.path)
+        self.fil = open(self.path)
 
-		self.superblock = superblock(self.fil.read(len(superblock)))
+        self.superblock = superblock(self.fil.read(len(superblock)))
 
-		print repr(self.superblock)
+        print repr(self.superblock)
 
-		if self.superblock.version_major != 4 or self.superblock.version_minor != 0:
-			raise ValueError("The module dont support this version: %d-%d" %
-				(self.superblock.version_major, self.superblock.version_minor))
+        if self.superblock.version_major != 4 or self.superblock.version_minor != 0:
+            raise ValueError("The module dont support this version: %d-%d" %
+                (self.superblock.version_major, self.superblock.version_minor))
 
-		assert self.superblock.magic == SQUASHFS_MAGIC
-		assert self.superblock.compression_id in compression_enum
+        assert self.superblock.magic == SQUASHFS_MAGIC
+        assert self.superblock.compression_id in compression_enum
 
-		self.comp = comp_map[self.superblock.compression_id]()
+        self.comp = comp_map[self.superblock.compression_id]()
 
-	def get_all_pathes(self):
-		pass
+    def get_all_pathes(self):
+        pass
 
-	def _read_metadata_block(self, fil_offset, size, offset=0):
-		self.fil.seek(fil_offset)
-		data = ""
+    def _read_metadata_block(self, fil_offset):
+        if fil_offset in self._block_cache:
+            return self._block_cache[fil_offset]
 
-		while len(data) - offset < size:
-			l = u16(self.fil.read(len(u16)))._val_property
-			print hex(l)
-			print hex(l & (0x8000 - 1))
-			tmp = self.fil.read(l & (0x8000 - 1))
+        self.fil.seek(fil_offset)
+        l = u16(self.fil.read(len(u16)))._val_property
+        data = self.fil.read(l & (0x8000 - 1))
+        if not l & 0x8000:
+            print "decompress"
+            data = self.comp.decompress(data)
 
-			if not l & 0x8000:
-				tmp = self.comp.decompress(data)
+        self._block_cache[fil_offset] = data
+        return data
 
-			data += tmp
+    def _read_metadata(self, fil_offset, size, offset=0):
+        self.fil.seek(fil_offset)
+        data = ""
 
-		return data
+        m = 0
+        while len(data) - offset < size:
+            tmp = self._read_metadata_block(fil_offset + m)
+            m += len(u16) + len(tmp)
+            data += tmp
+        
+        return data[offset:]
 
