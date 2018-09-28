@@ -1,3 +1,4 @@
+import sys
 from .types import *
 from .compression import comp_map
 
@@ -23,8 +24,13 @@ class SquashfsImage(object):
 
         self.comp = comp_map[self.superblock.compression_id]()
 
-    def get_all_pathes(self):
-        pass
+		#read the compression options (if COMPRESSOR_OPTIONS is set)
+		if (self.superblock.flags & COMPRESSOR_OPTIONS) and (self.superblock.compression_id in comp_options_map):
+		
+			self.comp_options = comp_options_map[self.superblock.compression_id](self.fil.read(len(comp_options_map[self.superblock.compression_id])))
+
+	def get_all_pathes(self):
+		pass
 
     def _read_metadata_block(self, fil_offset):
         if fil_offset in self._block_cache:
@@ -52,3 +58,11 @@ class SquashfsImage(object):
         
         return data[offset:]
 
+	def _read_inode(self, data, offset = 0):
+		header = inode_header(data[offset:])
+		inode = inode_map[header.inode_type](data[offset:])
+
+		if header.inode_type in changed_size_inodes:
+			pass #TO DO, write the changed size list and read 
+
+		return inode

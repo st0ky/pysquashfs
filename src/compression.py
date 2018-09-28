@@ -26,3 +26,10 @@ comp_map = {
 	LZ4 : NotImplementedCompressor,
 	ZSTD : NotImplementedCompressor,
 }
+
+comp_options_map = {
+	GZIP : GZIP_comression,
+	XZ : XZ_compression,
+	LZ4 : LZ4_compression,
+	ZSTD : ZSTD_compression
+}
