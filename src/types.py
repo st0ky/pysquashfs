@@ -8,3 +8,22 @@ conf = cstruct2py.configuration.Config(gcc_x86_64_le.byteorder, gcc_x86_64_le.lo
 p = cstruct2py.c2py.Parser(conf)
 p.parse_file(os.path.abspath(os.path.join(os.path.dirname(__file__), "structs.h")))
 p.update_globals(globals())
+
+inode_map = {
+	BASIC_DIRECTORY : basic_directory,	
+    BASIC_FILE : basic_file,
+    BASIC_SYMLINK : basic_symlink,
+    BASIC_BLOCK_DEVICE : basic_block_device,
+    BASIC_CHAR_DEVICE : basic_char_device,
+    BASIC_FIFO : basic_fifo,
+    BASIC_SOCKET : basic_socket,
+    EXTENDED_DIRECTORY : extended_directory,
+    EXTENDED_FILE : extended_file,
+    EXTENDED_SYMLINK : extended_symlink,
+    EXTENDED_BLOCK_DEVICE : extended_block_device,
+    EXTENDED_CHAR_DEVICE : extended_char_device,
+    EXTENDED_FIFO : extended_fifo,
+    EXTENDED_SOCKET : extended_socket
+}
+
+changed_size_inodes = {} #TO DO
