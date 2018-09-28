@@ -220,8 +220,22 @@ typedef struct extendedsocket {
 } extended_socket;
 
 	//fragments
-typedef struct fragmentblockentry{
+typedef struct fragmentblockentry {
 	u64 start;
 	u32 size;
 	u32 unused;
-}fragment_block_entry;
+} fragment_block_entry;
+
+typedef struct directoryentry {
+    u16 offset;
+    u16 inode_number;
+    u16 type;
+    u16 size;
+    char name[];
+} directory_entry;
+
+typedef struct directoryheader {
+    u32 count;
+    u32 start_block;
+    u32 inode_number;
+} directory_header;
