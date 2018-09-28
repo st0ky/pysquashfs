@@ -8,6 +8,7 @@ class SquashfsImage(object):
         super(SquashfsImage, self).__init__()
         self.path = path
         self._block_cache = {}
+        self._inode_cache = {}
 
         self.fil = open(self.path)
 
@@ -24,13 +25,13 @@ class SquashfsImage(object):
 
         self.comp = comp_map[self.superblock.compression_id]()
 
-		#read the compression options (if COMPRESSOR_OPTIONS is set)
-		if (self.superblock.flags & COMPRESSOR_OPTIONS) and (self.superblock.compression_id in comp_options_map):
-		
-			self.comp_options = comp_options_map[self.superblock.compression_id](self.fil.read(len(comp_options_map[self.superblock.compression_id])))
+        #read the compression options (if COMPRESSOR_OPTIONS is set)
+        if (self.superblock.flags & COMPRESSOR_OPTIONS) and (self.superblock.compression_id in comp_options_map):
+        
+            self.comp_options = comp_options_map[self.superblock.compression_id](self.fil.read(len(comp_options_map[self.superblock.compression_id])))
 
-	def get_all_pathes(self):
-		pass
+    def get_all_pathes(self):
+        pass
 
     def _read_metadata_block(self, fil_offset):
         if fil_offset in self._block_cache:
@@ -58,11 +59,19 @@ class SquashfsImage(object):
         
         return data[offset:]
 
-	def _read_inode(self, data, offset = 0):
-		header = inode_header(data[offset:])
-		inode = inode_map[header.inode_type](data[offset:])
+    def _read_inode(self, fil_offset, offset):
+        fil_offset += self.superblock.inode_table_start
+        if (fil_offset, offset) in self._inode_cache:
+            return self._inode_cache[(fil_offset, offset)]
 
-		if header.inode_type in changed_size_inodes:
-			pass #TO DO, write the changed size list and read 
+        data = self._read_metadata(fil_offset, len(inode_header) + 0x50, offset) # we read more data for the large inodes
+        header = inode_header(data)
+        inode = inode_map[header.inode_type](data)
 
-		return inode
+        self._inode_cache[(fil_offset, offset)] = inode
+        self._inode_cache[inode.header.inode_number] = inode
+
+        return inode
+
+
+        return inode
