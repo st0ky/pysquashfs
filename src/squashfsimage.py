@@ -37,7 +37,60 @@ class SquashfsImage(object):
         pass
 
     def list_dir(self, path):
-        pass
+        prev = ""
+        last = path
+        if path.startswith("squashfs-root/"):
+            prev = "squashfs-root/"
+            last = path[len(prev):]
+        elif path.startswith("/"):
+            prev = "/"
+            last = path[len(prev):]
+
+        inode = self._read_inode(self.superblock.root_inod_ref.block_offset, self.superblock.root_inod_ref.offset)
+        cur_dir = self._read_dir_data(inode)
+
+        while last:
+            for name, inode in cur_dir.items():
+                if last.startswith(name) and (name == last or last[len(name)] == "/"):
+                    prev += name + "/"
+                    last = path[len(prev):]
+                    cur_dir = self._read_dir_data(inode)
+                    break
+            else:
+                raise ValueError("Cannot find %s under %s" % (repr(last), repr(prev)))
+
+        return cur_dir
+
+    def _read_dir_data(self, inode):
+        data = self._read_metadata(self.superblock.directory_table_start + inode.start_block, inode.file_size, inode.offset)
+        header = directory_header(data)
+        offset = len(header)
+        items = {}
+        for _ in xrange(header.count+1):
+            tmp = directory_entry(data, offset)
+            i = self._read_inode(header.start_block, tmp.offset)
+            items[data[offset + len(tmp): offset + len(tmp) + tmp.size + 1]] = i
+            offset += len(tmp) + tmp.size + 1
+
+        return items
+        
+
+    # def _read_all_dirs(self):
+    #     root = self._read_inode(self.superblock.root_inod_ref.block_offset, self.superblock.root_inod_ref.offset)
+    #     waiting = []
+    #     waiting.append(root)
+    #     result = []
+    #     while waiting:
+    #         i = waiting.pop()
+    #         h, e = self._read_dir_data(i)
+    #         result.append((i, h, e))
+    #         for x in e:
+    #             if x.type == BASIC_DIRECTORY:
+    #                 i = self._read_inode(h.start_block, x.offset)
+    #                 waiting.append(i)
+
+    #     return result
+
 
     def _read_metadata_block(self, fil_offset):
         if fil_offset in self._block_cache:
@@ -76,8 +129,5 @@ class SquashfsImage(object):
 
         self._inode_cache[(block_offset, offset)] = inode
         self._inode_cache[inode.header.inode_number] = inode
-
-        return inode
-
 
         return inode
