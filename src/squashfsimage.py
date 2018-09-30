@@ -68,6 +68,7 @@ class SquashfsImage(object):
         items = {}
         for _ in xrange(header.count+1):
             tmp = directory_entry(data, offset)
+            name_size = 0
             i = self._read_inode(header.start_block, tmp.offset)
             items[data[offset + len(tmp): offset + len(tmp) + tmp.size + 1]] = i
             offset += len(tmp) + tmp.size + 1
@@ -119,7 +120,7 @@ class SquashfsImage(object):
 
     def _read_inode(self, block_offset, offset):
 
-        block_offset = block_offset*self.superblock.block_size + self.superblock.inode_table_start
+        block_offset += self.superblock.inode_table_start
         if (block_offset, offset) in self._inode_cache:
             return self._inode_cache[(block_offset, offset)]
 
@@ -143,25 +144,24 @@ class SquashfsImage(object):
                 #extended symlink
                 else:
                     index_size = len(u32)
-                    inode = inode_map[header.inode_type](data[:-index_size+1])
+                    inode = inode_map[header.inode_type](data[:-index_size-1])
                     inode.xattr_index = int(type(inode.xattr_index)(data[-index_size+1:]))
 
             #files
             if (header.inode_type == BASIC_FILE) or (header.inode_type == EXTENDED_FILE):
-                data = data[:len(data)-len(data)%4] # aligne to 32bit (for block_sizes)
+                sums = 0
+                blocks_num = 0
+                data = data[:len(data) - len(data)%4]
                 inode = inode_map[header.inode_type](data)
-                repr(inode) # for realy create the inode members (cstruct2py works lazy)
+                while sums < inode.file_size:
+                    sums += inode.block_sizes[blocks_num] & DATA_BLOCK_SIZE_MASK
+                    blocks_num += 1
+                if inode.fragment_block_index != 0xffffffff:
+                    blocks_num -= 1
+                print sums
                 block_size = len(u32)
-                num_blocks = 0
-                total_size = 0
-                while total_size < inode.file_size:
-                    total_size += inode.block_sizes[num_blocks] & DATA_BLOCK_SIZE_MASK
-                    print total_size
-                    print bin(inode.block_sizes[num_blocks])
-                    num_blocks += 1
-                inode_size = len(data) - len(inode.block_sizes) + num_blocks*block_size
+                inode_size = len(inode) + blocks_num*block_size
                 data = data[:inode_size]
-                print len(data)
                 inode = inode_map[header.inode_type](data)
 
         self._inode_cache[(block_offset, offset)] = inode
