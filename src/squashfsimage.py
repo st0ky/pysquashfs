@@ -47,7 +47,7 @@ class SquashfsImage(object):
         l = u16(self.fil.read(len(u16)))._val_property
         data = self.fil.read(l & (0x8000 - 1))
         if not l & 0x8000:
-            print "decompress"
+            print "decompress..."
             data = self.comp.decompress(data)
 
         self._block_cache[fil_offset] = data
@@ -66,18 +66,53 @@ class SquashfsImage(object):
         return data[offset:]
 
     def _read_inode(self, block_offset, offset):
+
         block_offset = block_offset*self.superblock.block_size + self.superblock.inode_table_start
         if (block_offset, offset) in self._inode_cache:
             return self._inode_cache[(block_offset, offset)]
 
         data = self._read_metadata(block_offset, len(inode_header) + 0x50, offset) # we read more data for the large inodes
         header = inode_header(data)
+        assert header.inode_type in inode_map, "false location (file offset: {0}, offset: {1}) header:\n{2}".format(block_offset ,offset, header)
         inode = inode_map[header.inode_type](data)
+
+        #changed size inodes (files and symlinks)
+        if header.inode_type in changed_size_inodes:
+
+            #symlinks
+            if (header.inode_type == BASIC_SYMLINK) or (header.inode_type == EXTENDED_SYMLINK):
+                char_size = len(u8)
+                repr(inode) # for realy create the inode members (cstruct2py works lazy)
+                inode_size = len(data) - len(inode.target_path) + inode.target_size*char_size
+                #basic symlink
+                if header.inode_type == BASIC_SYMLINK:
+                    data = data[:inode_size-1]
+                    inode = inode_map[header.inode_type](data)
+                #extended symlink
+                else:
+                    index_size = len(u32)
+                    inode = inode_map[header.inode_type](data[:-index_size+1])
+                    inode.xattr_index = int(type(inode.xattr_index)(data[-index_size+1:]))
+
+            #files
+            if (header.inode_type == BASIC_FILE) or (header.inode_type == EXTENDED_FILE):
+                data = data[:len(data)-len(data)%4] # aligne to 32bit (for block_sizes)
+                inode = inode_map[header.inode_type](data)
+                repr(inode) # for realy create the inode members (cstruct2py works lazy)
+                block_size = len(u32)
+                num_blocks = 0
+                total_size = 0
+                while total_size < inode.file_size:
+                    total_size += inode.block_sizes[num_blocks] & DATA_BLOCK_SIZE_MASK
+                    print total_size
+                    print bin(inode.block_sizes[num_blocks])
+                    num_blocks += 1
+                inode_size = len(data) - len(inode.block_sizes) + num_blocks*block_size
+                data = data[:inode_size]
+                print len(data)
+                inode = inode_map[header.inode_type](data)
 
         self._inode_cache[(block_offset, offset)] = inode
         self._inode_cache[inode.header.inode_number] = inode
-
-        return inode
-
 
         return inode

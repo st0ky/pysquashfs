@@ -26,4 +26,4 @@ inode_map = {
     EXTENDED_SOCKET : extended_socket
 }
 
-changed_size_inodes = {} #TO DO
+changed_size_inodes = (BASIC_FILE, BASIC_SYMLINK, EXTENDED_FILE, EXTENDED_SYMLINK)

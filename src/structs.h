@@ -8,6 +8,8 @@ typedef int32_t i32;
 typedef int64_t i64;
 
 #define SQUASHFS_MAGIC         (0x73717368)
+#define DATA_BLOCK_COMPRESSED  (0x00000001 << 24)
+#define DATA_BLOCK_SIZE_MASK   DATA_BLOCK_COMPRESSED ^ 0xffffffff
 
 //Superblock Flags
 #define UNCOMPRESSED_INODES    (0x0001)            //Inodes are stored uncompressed. For backward compatibility reasons, UID/GIDs are also stored uncompressed.
