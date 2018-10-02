@@ -11,6 +11,7 @@ class SquashfsImage(object):
         self._block_cache = {}
         self._inode_cache = {}
         self._fragment_entry_cache = {}
+        self._ids_cache = {}
 
         self.fil = open(self.path)
 
@@ -19,10 +20,11 @@ class SquashfsImage(object):
         print repr(self.superblock)
 
         if self.superblock.version_major != 4 or self.superblock.version_minor != 0:
-            raise ValueError("The module dont support this version: %d-%d" %
+            raise ValueError("The module don't support this version: %d-%d" %
                 (self.superblock.version_major, self.superblock.version_minor))
 
         assert self.superblock.magic == SQUASHFS_MAGIC
+        assert 2**self.superblock.block_log == self.superblock.block_size
         assert self.superblock.compression_id in compression_enum
 
         self.comp = comp_map[self.superblock.compression_id]()
@@ -35,8 +37,45 @@ class SquashfsImage(object):
     def get_all_pathes(self):
         pass
 
-    def get_file_content(self, path):
-        pass
+    def get_file_content(self, path, size=-1, offset=0):
+        tmp = path.split("/")
+        filename = tmp[-1]
+        path = "/".join(tmp[:-1])
+
+        inodes = self.list_dir(path)
+        if not filename in inodes:
+            raise ValueError("Cannot find %s under %s" % (filname, path))
+        inode = inodes[filename]
+
+        if offset > inode.file_size:
+            raise ValueError("File offset %s out of the file %s" % (offset, filename))
+        
+        r_block = inode.blocks_start
+        start = offset / self.superblock.block_size
+        offset = offset % self.superblock.block_size
+
+        blocks_list =[]
+        for block in inode.block_sizes:
+            blocks_list.append(block)
+        blocks_list = blocks_list[start:]
+
+        for i in xrange(start):
+                start_block += inode.block_sizes[i] & DATA_BLOCK_SIZE_MASK
+        if size == -1:
+            size = inode.file_size
+
+        data = ''
+        for block in blocks_list:
+            if len(data) - offset >= size:
+                break
+            data += self._read_data_block(r_block, block)
+            r_block += block & DATA_BLOCK_SIZE_MASK
+
+        if inode.fragment_block_index != 0xffffffff:
+            data += self._read_fregment(inode)
+
+        return data[offset:size+offset]
+        
 
     def list_dir(self, path):
         prev = ""
@@ -173,7 +212,6 @@ class SquashfsImage(object):
 
         self.fil.seek(block)
         data = self.fil.read(size)
-        print data
         if compressed:
             data = self.comp.decompress(data)
 
@@ -187,14 +225,53 @@ class SquashfsImage(object):
             num_indxs = int(ceil(self.superblock.fragment_entry_count / 512.0))
             self._fragment_entry_cache['index'] =  fragment_index(self.fil.read(num_indxs*len(u64))), num_indxs
 
+        if not file_inode.fragment_block_index in self._fragment_entry_cache:
+            frg_num_block = file_inode.fragment_block_index / 512
+            frg_offset = (file_inode.fragment_block_index % 512)*len(fragment_block_entry)
+
+            frg_ent_block, s = self._read_metadata_block(self._fragment_entry_cache['index'][0].index[frg_num_block])
+            frg_ent = fragment_block_entry(frg_ent_block[frg_offset:])
+
+            self._fragment_entry_cache[file_inode.fragment_block_index] = frg_ent
+        else:
+            frg_ent = self._fragment_entry_cache[file_inode.fragment_block_index]
+
         frg_size = file_inode.file_size % self.superblock.block_size
-        frg_num_block = file_inode.fragment_block_index / 512
-        frg_offset = (file_inode.fragment_block_index % 512)*len(fragment_block_entry)
-
-        frg_ent_block, s = self._read_metadata_block(self._fragment_entry_cache['index'][0].index[frg_num_block])
-        frg_ent = fragment_block_entry(frg_ent_block[frg_offset:])
-
         data = self._read_data_block(frg_ent.start, frg_ent.size)
         data = data[file_inode.fragment_offset:file_inode.fragment_offset+frg_size]
 
         return data
+
+    def _read_ids(self, inode):
+
+        if not 'index' in self._ids_cache:
+            self.fil.seek(self.superblock.id_table_start)
+            num_indxs = int(ceil(self.superblock.id_count / 2048.0))
+            self._ids_cache['index'] =  ids_index(self.fil.read(num_indxs*len(u64))), num_indxs
+
+        if not inode.header.uid_index in self._ids_cache:
+            uid_num_block = inode.header.uid_index / 2048
+            uid_offset = (inode.header.uid_index % 2048)*len(id_num)
+
+            uids_block, s = self._read_metadata_block(self._ids_cache['index'][0].index[uid_num_block])
+            uid = id_num(uids_block[uid_offset:])
+
+            self._ids_cache[inode.header.uid_index] = uid
+        else:
+            uid = self._ids_cache[inode.header.uid_index]
+
+        if not inode.header.gid_index in self._ids_cache:
+            gid_num_block, s = inode.header.gid_index / 2048
+            gid_offset = (inode.header.gid_index % 2048)*len(id_num)
+
+            gids_block = self._read_metadata_block(self._ids_cache['index'][0].index[gid_num_block])
+            gid = id_num(gids_block[gid_offset:])
+
+            self._ids_cache[inode.header.gid_index] = gid
+        else:
+            gid = self._ids_cache[inode.header.gid_index]
+
+        return {'uid': uid, 'gid': gid}
+
+
+

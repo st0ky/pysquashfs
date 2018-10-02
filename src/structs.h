@@ -7,6 +7,8 @@ typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
 
+typedef u32 id_num;
+
 #define SQUASHFS_MAGIC         (0x73717368)
 #define DATA_BLOCK_COMPRESSED  (0x00000001 << 24)
 #define DATA_BLOCK_SIZE_MASK   DATA_BLOCK_COMPRESSED ^ 0xffffffff
@@ -109,8 +111,8 @@ typedef struct ZSTDcompression{
 typedef struct inodeheader {
     u16 inode_type;
     u16 permission;
-    u16 uid_idx;
-    u16 gid_idx;
+    u16 uid_index;
+    u16 gid_index;
     i32 modified_time;
     u32 inode_number;
 } inode_header;
@@ -245,3 +247,7 @@ typedef struct directoryheader {
     u32 start_block;
     u32 inode_number;
 } directory_header;
+
+typedef struct idsindex{
+    u64 index[];
+} ids_index;
