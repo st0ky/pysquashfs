@@ -1,4 +1,5 @@
 import sys
+from math import ceil
 from .types import *
 from .compression import comp_map
 
@@ -9,6 +10,7 @@ class SquashfsImage(object):
         self.path = path
         self._block_cache = {}
         self._inode_cache = {}
+        self._fragment_entry_cache = {}
 
         self.fil = open(self.path)
 
@@ -149,22 +151,48 @@ class SquashfsImage(object):
 
             #files
             if (header.inode_type == BASIC_FILE) or (header.inode_type == EXTENDED_FILE):
-                sums = 0
-                blocks_num = 0
-                data = data[:len(data) - len(data)%4]
-                inode = inode_map[header.inode_type](data)
-                while sums < inode.file_size:
-                    sums += inode.block_sizes[blocks_num] & DATA_BLOCK_SIZE_MASK
+                blocks_num = inode.file_size / self.superblock.block_size
+                if inode.fragment_block_index == 0xffffffff and inode.file_size % self.superblock.block_size:
                     blocks_num += 1
-                if inode.fragment_block_index != 0xffffffff:
-                    blocks_num -= 1
-                print sums
                 block_size = len(u32)
                 inode_size = len(inode) + blocks_num*block_size
-                data = data[:inode_size]
+                if inode_size > len(data):
+                    data = self._read_metadata(block_offset, inode_size, offset)
+                else:
+                    data = data[:inode_size]
                 inode = inode_map[header.inode_type](data)
 
         self._inode_cache[(block_offset, offset)] = inode
         self._inode_cache[inode.header.inode_number] = inode
 
         return inode
+
+    def _read_data_block(self, block, size):
+        compressed = not (size & DATA_BLOCK_COMPRESSED)
+        size = size & DATA_BLOCK_SIZE_MASK
+
+        self.fil.seek(block)
+        data = self.fil.read(size)
+        print data
+        if compressed:
+            data = self.comp.decompress(data)
+
+        if len(data) != self.superblock.block_size:
+            raise
+
+        return data
+
+    #def _read_fregment(self, file_inode):
+    #    assert file_inode.fragment_block_index != 0xffffffff
+#
+    #    if not 'index' in self._fragment_entry_cache:
+    #        self.fil.seek(self.superblock.fragment_table_start)
+    #        num_indxs = int(ceil(self.superblock.fragment_entry_count / 512.0))
+    #        self._fragment_entry_cache['index'] =  fragment_index(self.fil.read(num_indxs*len(u64))), num_indxs*8
+#
+    #    fragment_entries_block, s = self._read_metadata_block(self.superblock.fragment_table_start + self._fragment_entry_cache['index'][1] + file_inode.fragment_offset*0x2000)
+    #    frg_ent = fragment_block_entry(fragment_entries_block[file_inode.fragment_offset:])
+    #    print repr(frg_ent)
+    #    data =  self._read_data_block(frg_ent.start, frg_ent.size)
+#
+    #    return data[file_inode.fragment_offset:file_inode.file_size % self.superblock.block_size]

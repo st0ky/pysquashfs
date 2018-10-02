@@ -138,7 +138,7 @@ typedef struct basicsymlink {
     inode_header header;
     u32 nlink;
     u32 target_size;
-    u8 target_path[];
+    char target_path[];
 } basic_symlink;
 
 typedef struct basicblockdevice {
@@ -191,7 +191,7 @@ typedef struct extendedsymlink {
     inode_header header;
     u32 nlink;
     u32 target_size;
-    u8 target_path[];
+    char target_path[];
     u32 xattr_index;
 } extended_symlink;
 
@@ -227,6 +227,10 @@ typedef struct fragmentblockentry {
 	u32 size;
 	u32 unused;
 } fragment_block_entry;
+
+typedef struct fragmentindex{
+    u64 index[];
+} fragment_index;
 
 typedef struct directoryentry {
     u16 offset;
