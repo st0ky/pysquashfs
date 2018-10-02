@@ -177,22 +177,24 @@ class SquashfsImage(object):
         if compressed:
             data = self.comp.decompress(data)
 
-        if len(data) != self.superblock.block_size:
-            raise
-
         return data
 
-    #def _read_fregment(self, file_inode):
-    #    assert file_inode.fragment_block_index != 0xffffffff
-#
-    #    if not 'index' in self._fragment_entry_cache:
-    #        self.fil.seek(self.superblock.fragment_table_start)
-    #        num_indxs = int(ceil(self.superblock.fragment_entry_count / 512.0))
-    #        self._fragment_entry_cache['index'] =  fragment_index(self.fil.read(num_indxs*len(u64))), num_indxs*8
-#
-    #    fragment_entries_block, s = self._read_metadata_block(self.superblock.fragment_table_start + self._fragment_entry_cache['index'][1] + file_inode.fragment_offset*0x2000)
-    #    frg_ent = fragment_block_entry(fragment_entries_block[file_inode.fragment_offset:])
-    #    print repr(frg_ent)
-    #    data =  self._read_data_block(frg_ent.start, frg_ent.size)
-#
-    #    return data[file_inode.fragment_offset:file_inode.file_size % self.superblock.block_size]
+    def _read_fregment(self, file_inode):
+        assert file_inode.fragment_block_index != 0xffffffff
+
+        if not 'index' in self._fragment_entry_cache:
+            self.fil.seek(self.superblock.fragment_table_start)
+            num_indxs = int(ceil(self.superblock.fragment_entry_count / 512.0))
+            self._fragment_entry_cache['index'] =  fragment_index(self.fil.read(num_indxs*len(u64))), num_indxs
+
+        frg_size = file_inode.file_size % self.superblock.block_size
+        frg_num_block = file_inode.fragment_block_index / 512
+        frg_offset = (file_inode.fragment_block_index % 512)*len(fragment_block_entry)
+
+        frg_ent_block, s = self._read_metadata_block(self._fragment_entry_cache['index'][0].index[frg_num_block])
+        frg_ent = fragment_block_entry(frg_ent_block[frg_offset:])
+
+        data = self._read_data_block(frg_ent.start, frg_ent.size)
+        data = data[file_inode.fragment_offset:file_inode.fragment_offset+frg_size]
+
+        return data
