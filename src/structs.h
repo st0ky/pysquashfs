@@ -12,6 +12,7 @@ typedef u32 id_num;
 #define SQUASHFS_MAGIC         (0x73717368)
 #define DATA_BLOCK_COMPRESSED  (0x00000001 << 24)
 #define DATA_BLOCK_SIZE_MASK   DATA_BLOCK_COMPRESSED ^ 0xffffffff
+#define METADATA_blOCK_SIZE    0x2000
 
 //Superblock Flags
 #define UNCOMPRESSED_INODES    (0x0001)            //Inodes are stored uncompressed. For backward compatibility reasons, UID/GIDs are also stored uncompressed.
@@ -230,9 +231,9 @@ typedef struct fragmentblockentry {
 	u32 unused;
 } fragment_block_entry;
 
-typedef struct fragmentindex{
+typedef struct index{
     u64 index[];
-} fragment_index;
+} index;
 
 typedef struct directoryentry {
     u16 offset;
@@ -247,7 +248,3 @@ typedef struct directoryheader {
     u32 start_block;
     u32 inode_number;
 } directory_header;
-
-typedef struct idsindex{
-    u64 index[];
-} ids_index;
