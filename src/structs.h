@@ -235,6 +235,7 @@ typedef struct index{
     u64 index[];
 } index;
 
+    //directories
 typedef struct directoryentry {
     u16 offset;
     u16 inode_number;
@@ -248,3 +249,25 @@ typedef struct directoryheader {
     u32 start_block;
     u32 inode_number;
 } directory_header;
+
+    //xatters
+typedef struct xattrentry {
+    u16 type;
+    u16 size;
+} xattr_entry;
+
+typedef struct xattrvalue {
+    u16 vsize;
+} xattr_value;
+
+typedef struct xattrid {
+    i64 xattr;
+    u32 count;
+    u32 size;
+} xattr_id;
+
+typedef struct xattrtable {
+    i64 xattr_table_start;
+    u32 xattr_ids;
+    u32 unused;
+} xattr_table;
