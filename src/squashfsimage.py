@@ -12,6 +12,7 @@ class SquashfsImage(object):
         self._inode_cache = {}
         self._fragment_entry_cache = {}
         self._ids_cache = {}
+        self._xattr_cache = {}
 
         self.fil = open(self.path)
 
@@ -242,9 +243,10 @@ class SquashfsImage(object):
         gid = self._read_from_index(self._ids_cache, inode.header.gid_index, id_num,\
                                      self.superblock.id_table_start, self.superblock.id_count)
 
-        return {'uid': uid, 'gid': gid}
+        return {'uid': int(uid._val_property), 'gid': int(gid._val_property)}
 
     def _read_from_index(self, cache, indx, struct, table_start, count):
+
         if not 'index' in cache:
             self.fil.seek(table_start)
             num_indxs = int(ceil(count / float(METADATA_blOCK_SIZE / len(struct))))
@@ -255,7 +257,7 @@ class SquashfsImage(object):
 
         else:
             num_block = indx / (METADATA_blOCK_SIZE / len(struct))
-            offset = (indx % 2048)*len(struct)
+            offset = (indx % (METADATA_blOCK_SIZE / len(struct)))*len(struct)
 
             block, s = self._read_metadata_block(cache['index'][0].index[num_block])
             data = struct(block[offset:])
@@ -263,3 +265,41 @@ class SquashfsImage(object):
             cache[indx] = data
 
         return data
+
+    def _read_xattr_index(self, xattr_index):
+
+        if 'table' in self._xattr_cache:
+            table = self._xattr_cache['table']
+        else:
+            self.fil.seek(self.superblock.xattr_id_table_start)
+            table = xattr_table(self.fil.read(len(xattr_table)))
+            self._xattr_cache['table'] = table
+
+        attr_id = self._read_from_index(self._xattr_cache, xattr_index, xattr_id,\
+                            self.superblock.xattr_id_table_start + len(xattr_table), table.xattr_ids)
+
+        xattr_data = self._read_metadata(table.xattr_table_start, attr_id.size, attr_id.xattr_offset)
+        xattrs_dict = {}
+        offset = 0
+        for i in xrange(attr_id.count):
+            name, value, size = self._read_xattr(xattr_data[offset:])
+            xattrs_dict[name] = value
+            offset += size
+
+        return xattrs_dict
+
+    def _read_xattr(self, data):
+        entry = xattr_entry(data)
+        data = data[len(xattr_entry):]
+
+        name = data[:entry.size]
+        data = data[entry.size:]
+
+        value_size = xattr_value(data)
+        data = data[len(value_size):]
+
+        value = data[:value_size.vsize]
+        size = len(xattr_entry)+len(name)+len(xattr_value)+len(value)
+        full_name = xattr_type_map[entry.type] + name
+
+        return full_name, value, size

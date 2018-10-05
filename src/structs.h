@@ -14,6 +14,11 @@ typedef u32 id_num;
 #define DATA_BLOCK_SIZE_MASK   DATA_BLOCK_COMPRESSED ^ 0xffffffff
 #define METADATA_blOCK_SIZE    0x2000
 
+//xattr types
+#define USER             0
+#define TRUSTED          1
+#define SECURITY         2
+
 //Superblock Flags
 #define UNCOMPRESSED_INODES    (0x0001)            //Inodes are stored uncompressed. For backward compatibility reasons, UID/GIDs are also stored uncompressed.
 #define UNCOMPRESSED_DATA      (0x0002)            //Data are stored uncompressed
@@ -250,24 +255,24 @@ typedef struct directoryheader {
     u32 inode_number;
 } directory_header;
 
-    //xatters
+    //xattrs
 typedef struct xattrentry {
-    u16 type;
-    u16 size;
+    u16 type;               //type of xattr (user, trusted, security, system)
+    u16 size;               //size of the name of the xattr (the part after the dot in "type.name" )
 } xattr_entry;
 
 typedef struct xattrvalue {
-    u16 vsize;
+    u32 vsize;              //size of the value of the xattr (which comes right after)
 } xattr_value;
 
 typedef struct xattrid {
-    i64 xattr;
-    u32 count;
-    u32 size;
+    u64 xattr_offset;       //the offset of the xattr inside the xattr table
+    u32 count;              //number of the extended attributs
+    u32 size;               //size of the extended attributs
 } xattr_id;
 
 typedef struct xattrtable {
-    i64 xattr_table_start;
-    u32 xattr_ids;
+    i64 xattr_table_start;  //the start of the xattr entries table
+    u32 xattr_ids;          //number of ids 
     u32 unused;
 } xattr_table;

@@ -27,3 +27,5 @@ inode_map = {
 }
 
 changed_size_inodes = (BASIC_FILE, BASIC_SYMLINK, EXTENDED_FILE, EXTENDED_SYMLINK)
+
+xattr_type_map = {USER: 'user.', TRUSTED: 'trusted.', SECURITY: 'security.'}
