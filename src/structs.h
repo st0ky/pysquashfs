@@ -12,7 +12,7 @@ typedef u32 id_num;
 #define SQUASHFS_MAGIC         (0x73717368)
 #define DATA_BLOCK_COMPRESSED  (0x00000001 << 24)
 #define DATA_BLOCK_SIZE_MASK   DATA_BLOCK_COMPRESSED ^ 0xffffffff
-#define METADATA_blOCK_SIZE    0x2000
+#define METADATA_BLOCK_SIZE    0x2000
 
 //xattr types
 #define USER             0
@@ -61,13 +61,14 @@ enum compression_enum {
 	ZSTD
 };
 
+//structs
+
 typedef struct inoderef {
     u16 offset;
     u32 block_offset;
     u16 unused;
 } inode_ref;
 
-//structs
 	//super block
 typedef struct superblock {
     u32 magic;
@@ -119,7 +120,7 @@ typedef struct inodeheader {
     u16 permission;
     u16 uid_index;
     u16 gid_index;
-    i32 modified_time;
+    i32 modification_time;
     u32 inode_number;
 } inode_header;
 
@@ -171,7 +172,7 @@ typedef struct basicsocket {
     u32 nlink;
 }basic_socket;
 
-		//extended blocks
+		//extended inodes
 typedef struct extendeddirectory {
     inode_header header;
     u32 nlink;
@@ -187,7 +188,7 @@ typedef struct extendedfile {
     inode_header header;
     u64 blocks_start;
     u64 file_size;
-    u64 sparse;
+    u64 sparse;             //size of imagination content(null bytes)
     u32 nlink;
     u32 fragment_block_index;
     u32 fragment_offset;
@@ -236,8 +237,8 @@ typedef struct fragmentblockentry {
 	u32 unused;
 } fragment_block_entry;
 
-typedef struct index{
-    u64 index[];
+typedef struct metadata_index{
+    u64 m_index[];
 } index;
 
     //directories
@@ -250,15 +251,15 @@ typedef struct directoryentry {
 } directory_entry;
 
 typedef struct directoryheader {
-    u32 count;
-    u32 start_block;
-    u32 inode_number;
+    u32 count;              //number of items in this directory
+    u32 start_block;        //the block offset from the start of inode table, where the inodes of the items of the directory starts
+    u32 inode_number;       //the number of the directory inode which point to this directory header
 } directory_header;
 
     //xattrs
 typedef struct xattrentry {
-    u16 type;               //type of xattr (user, trusted, security, system)
-    u16 size;               //size of the name of the xattr (the part after the dot in "type.name" )
+    u16 type;               //type of the xattr (user, trusted, security)
+    u16 size;               //size of the name of the xattr (the part after the dot in "type.name")
 } xattr_entry;
 
 typedef struct xattrvalue {
@@ -266,13 +267,13 @@ typedef struct xattrvalue {
 } xattr_value;
 
 typedef struct xattrid {
-    u64 xattr_offset;       //the offset of the xattr inside the xattr table
-    u32 count;              //number of the extended attributs
-    u32 size;               //size of the extended attributs
+    u64 xattr_offset;       //the offset of the xattr inside the xattr entries table
+    u32 count;              //number of the extended attributs (there is count xattr entries of this xattr id)
+    u32 size;               //size of the all extended attributs of this xattr id
 } xattr_id;
 
 typedef struct xattrtable {
     i64 xattr_table_start;  //the start of the xattr entries table
     u32 xattr_ids;          //number of ids 
-    u32 unused;
+    u32 unused;             //unused
 } xattr_table;

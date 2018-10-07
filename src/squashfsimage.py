@@ -7,7 +7,7 @@ class SquashfsImage(object):
     """docstring for SquashfsImage"""
     def __init__(self, path):
         super(SquashfsImage, self).__init__()
-        self.path = path
+        self.path = os.path.realpath(path)
         self._block_cache = {}
         self._inode_cache = {}
         self._fragment_entry_cache = {}
@@ -21,7 +21,7 @@ class SquashfsImage(object):
         print repr(self.superblock)
 
         if self.superblock.version_major != 4 or self.superblock.version_minor != 0:
-            raise ValueError("The module don't support this version: %d-%d" %
+            raise ValueError("The module does not support this version: %d-%d" %
                 (self.superblock.version_major, self.superblock.version_minor))
 
         assert self.superblock.magic == SQUASHFS_MAGIC
@@ -38,10 +38,79 @@ class SquashfsImage(object):
     def get_all_pathes(self):
         pass
 
-    def get_file_content(self, path, size=-1, offset=0):
+    def permission(self, path):
+        filename, inode = self._get_inode_by_path(path)
+        perms = inode.header.permission
+        b = bin(perms)
+        p_str = ''
+        for i in xrange(1,10):
+            if b[-i] == '1':
+                p_str = permission_map[i%3] + p_str
+            else:
+                p_str = '-' + p_str
+        return perms, p_str
+
+    def owner(self, path):
+        filename, inode = self._get_inode_by_path(path)
+        return self._read_ids(inode)
+
+    def modification_time(self, path = False):
+        if path:
+            filename, inode = self._get_inode_by_path(path)
+            date = inode.header.modification_time
+        else:
+            date = self.superblock.modification_time
+        return int(date)
+
+    def type(self, path):
+        filename, inode = self._get_inode_by_path(path)
+        return file_type_map[inode.header.inode_type]
+
+    def get_xattr(self, path, name = ''):
+        filename, inode = self._get_inode_by_path(path)
+
+        if not is_extended_map[inode.header.inode_type] or inode.xattr_index == 0xffffffff:
+            return None
+
+        xattrs = self._read_xattr_index(inode.xattr_index)
+        if name in xattrs:
+            return xattrs[name]
+        elif name == 'all' or name == 'a':
+            return xattrs
+        else:
+            return sorted(xattrs.keys())
+
+    def size(self, path = False, frmt = 'b', sparse = True):
+        if path:
+            filename, inode = self._get_inode_by_path(path)
+            if (file_type_map[inode.header.inode_type] == 'File') or (file_type_map[inode.header.inode_type] == 'Directory'):
+                size = inode.file_size
+                if inode.header.inode_type == EXTENDED_FILE and not sparse:
+                    size = size - inode.sparse
+            else:
+                raise ValueError("%s has no size" % (path))
+        else:
+            size = self.superblock.bytes_used
+
+        if frmt == 'g' or frmt == 'G':
+            size = float("%.3f" % (size / (1024.0**3)))
+        elif frmt == 'm' or frmt == 'M':
+            size = float("%.3f" % (size / (1024.0**2)))
+        elif frmt == 'k' or frmt == 'K':
+            size = float("%.3f" % (size / (1024.0)))
+        elif frmt == 'b' or frmt == 'B':
+            size = int(size)
+        else:
+            raise ValueError("Invalid size format : %s", frmt)
+
+        return size
+
+    def get_file_content(self, path, size=-1, offset=0, sparse=False):
 
         filename, inode = self._get_inode_by_path(path)
 
+        if file_type_map[inode.header.inode_type] != "File":
+            raise ValueError("%s is not a file" % (path))
         if offset > inode.file_size:
             raise ValueError("File offset %s is out of the file %s" % (offset, filename))
 
@@ -51,20 +120,50 @@ class SquashfsImage(object):
 
         if size == -1:
             size = inode.file_size
+        if inode.header.inode_type == EXTENDED_FILE and sparse:
+            sparse = inode.sparse
+        else:
+            sparse = 0
+
+        #   start reading
         data = ""
         for i in xrange(inode.file_size / self.superblock.block_size):
             if (len(data) - offset) >= size:
                 break
             elif i >= start:
-                data += self._read_data_block(r_block, inode.block_sizes[i])
+                #   sparse support
+                if inode.block_sizes[i] == 0:
+                    if sparse / self.superblock.block_size:
+                        data += chr(0x00)*self.superblock.block_size
+                        saprse -= self.superblock.block_size
+                        continue
+                    else:
+                        data += chr(0x00)*(sparse % self.superblock.block_size)
+                        saprse -= sparse % self.superblock.block_size
+                        continue
+                else:
+                    print inode.block_sizes[i]
+                    data += self._read_data_block(r_block, inode.block_sizes[i])
             r_block += inode.block_sizes[i] & DATA_BLOCK_SIZE_MASK
 
-        if inode.fragment_block_index != 0xffffffff:
+        #   read the tail (another datablock or a fragment) if exist
+        if ((len(data) + offset) < inode.file_size) and (len(data) < size) and (inode.fragment_block_index == 0xffffffff):
+            #   sparse support
+                if inode.block_sizes[i] == 0:
+                    if sparse / self.superblock.block_size:
+                        data += chr(0x00)*self.superblock.block_size
+                        saprse -= self.superblock.block_size
+                    else:
+                        data += chr(0x00)*(sparse % self.superblock.block_size)
+                        saprse -= sparse % self.superblock.block_size
+                else:
+                    print inode.block_sizes[i+1]
+                    data += self._read_data_block(r_block, inode.block_sizes[i+1])
+        if len(data) < size and inode.fragment_block_index != 0xffffffff:
             data += self._read_fregment(inode)
 
         return data[offset:size+offset]
         
-
     def list_dir(self, path, inodes = False):
         prev = ""
         last = path
@@ -95,13 +194,12 @@ class SquashfsImage(object):
 
     def _get_inode_by_path(self, path):
 
-        begin = ""
-        if path.startswith("squashfs-root/"):
-            begin = "squashfs-root"
-            path = path[len(begin):]
-        tmp = path.split("/")
-        filename = tmp[-1]
-        path = begin + "/".join(tmp[:-1])
+        filename = path[path.rfind("/")+1:]
+        path = path[:path.rfind("/")+1]
+
+        if filename == '':
+            inode = self._read_inode(self.superblock.root_inod_ref.block_offset, self.superblock.root_inod_ref.offset)
+            return path, inode
 
         inodes = self.list_dir(path, True)
         if not filename in inodes:
@@ -180,7 +278,7 @@ class SquashfsImage(object):
         if header.inode_type in changed_size_inodes:
 
             #symlinks
-            if (header.inode_type == BASIC_SYMLINK) or (header.inode_type == EXTENDED_SYMLINK):
+            if file_type_map[header.inode_type] == 'Symlink'::
                 char_size = len(u8)
                 repr(inode) # for realy create the inode members (cstruct2py works lazy)
                 inode_size = len(data) - len(inode.target_path) + inode.target_size*char_size
@@ -195,8 +293,8 @@ class SquashfsImage(object):
                     inode.xattr_index = int(type(inode.xattr_index)(data[-index_size+1:]))
 
             #files
-            if (header.inode_type == BASIC_FILE) or (header.inode_type == EXTENDED_FILE):
-                blocks_num = inode.file_size / self.superblock.block_size
+            if file_type_map[header.inode_type] == 'File':
+                blocks_num = int(ceil(inode.file_size / float(self.superblock.block_size))) # max num, not always the real num
                 if inode.fragment_block_index == 0xffffffff and inode.file_size % self.superblock.block_size:
                     blocks_num += 1
                 block_size = len(u32)
@@ -249,17 +347,17 @@ class SquashfsImage(object):
 
         if not 'index' in cache:
             self.fil.seek(table_start)
-            num_indxs = int(ceil(count / float(METADATA_blOCK_SIZE / len(struct))))
-            cache['index'] =  index(self.fil.read(num_indxs*len(u64))), num_indxs
+            num_indxs = int(ceil(count / float(METADATA_BLOCK_SIZE / len(struct))))
+            cache['index'] =  metadata_index(self.fil.read(num_indxs*len(u64))), num_indxs
 
         if indx in cache:
             data = cache[indx]
 
         else:
-            num_block = indx / (METADATA_blOCK_SIZE / len(struct))
-            offset = (indx % (METADATA_blOCK_SIZE / len(struct)))*len(struct)
+            num_block = indx / (METADATA_BLOCK_SIZE / len(struct))
+            offset = (indx % (METADATA_BLOCK_SIZE / len(struct)))*len(struct)
 
-            block, s = self._read_metadata_block(cache['index'][0].index[num_block])
+            block, s = self._read_metadata_block(cache['index'][0].m_index[num_block])
             data = struct(block[offset:])
 
             cache[indx] = data
@@ -278,28 +376,33 @@ class SquashfsImage(object):
         attr_id = self._read_from_index(self._xattr_cache, xattr_index, xattr_id,\
                             self.superblock.xattr_id_table_start + len(xattr_table), table.xattr_ids)
 
-        xattr_data = self._read_metadata(table.xattr_table_start, attr_id.size, attr_id.xattr_offset)
+        xattr_block_num = attr_id.xattr_offset / METADATA_BLOCK_SIZE
+        offset = attr_id.xattr_offset % METADATA_BLOCK_SIZE
+        xattr_block, s = self._read_metadata_block(table.xattr_table_start + xattr_block_num*METADATA_BLOCK_SIZE)
         xattrs_dict = {}
-        offset = 0
         for i in xrange(attr_id.count):
-            name, value, size = self._read_xattr(xattr_data[offset:])
+            name, value, size = self._read_xattr(xattr_block, offset)
             xattrs_dict[name] = value
-            offset += size
+            offset = size
 
         return xattrs_dict
 
-    def _read_xattr(self, data):
-        entry = xattr_entry(data)
-        data = data[len(xattr_entry):]
+    def _read_xattr(self, data, offset):
+        now = offset
+        entry = xattr_entry(data[offset:])
+        now += len(entry)
+        name = data[now : now + entry.size]
+        now += entry.size
+        value_size = xattr_value(data[now:])
+        now += len(value_size)
+        value = data[now: now + value_size.vsize]
+        now += len(value)
+        if entry.type & 0x100:   #    so the value is just a pointer to the real xattr value
+            value_pointer = u64(value)._val_property
+            size = u32(self._read_metadata(self._xattr_cache['table'].xattr_table_start, len(u32), value_pointer))
+            value = self._read_metadata(self._xattr_cache['table'].xattr_table_start, size._val_property, value_pointer + len(u32))
+            value = value[:size._val_property]
 
-        name = data[:entry.size]
-        data = data[entry.size:]
+        full_name = xattr_type_map[(entry.type & 0xff)] + name
 
-        value_size = xattr_value(data)
-        data = data[len(value_size):]
-
-        value = data[:value_size.vsize]
-        size = len(xattr_entry)+len(name)+len(xattr_value)+len(value)
-        full_name = xattr_type_map[entry.type] + name
-
-        return full_name, value, size
+        return full_name, value, now
