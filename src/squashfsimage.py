@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 from .types import *
-from .compression import comp_map
+from .compression import comp_map, comp_options_map, comp_str_map
 
 class SquashfsImage(object):
     """docstring for SquashfsImage"""
@@ -38,6 +38,9 @@ class SquashfsImage(object):
     def get_all_pathes(self):
         pass
 
+    def compression(self):
+        return comp_str_map[self.superblock.compression_id]
+
     def permission(self, path):
         filename, inode = self._get_inode_by_path(path)
         perms = inode.header.permission
@@ -65,6 +68,13 @@ class SquashfsImage(object):
     def type(self, path):
         filename, inode = self._get_inode_by_path(path)
         return file_type_map[inode.header.inode_type]
+
+    def linked(self, path):
+        filename, inode = self._get_inode_by_path(path)
+        if inode.header.inode_type == BASIC_FILE:
+            return 1
+        else:
+            return int(inode.nlink)
 
     def get_xattr(self, path, name = ''):
         filename, inode = self._get_inode_by_path(path)

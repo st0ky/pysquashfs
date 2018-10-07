@@ -33,3 +33,12 @@ comp_options_map = {
 	LZ4 : LZ4_compression,
 	ZSTD : ZSTD_compression
 }
+
+comp_str_map = {
+	GZIP : 'GZIP',
+	LZMA : 'LZMA',
+    LZO  : 'LZO',
+    XZ 	 : 'XZ',
+	LZ4  : 'LZ4',
+	ZSTD : 'ZSTD'
+}
