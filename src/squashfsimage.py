@@ -180,6 +180,8 @@ class SquashfsImage(object):
         while last:
             for name, inode in cur_dir.items():
                 if last.startswith(name) and (name == last or last[len(name)] == "/"):
+                    if file_type_map[inode.header.inode_type] != 'Directory':
+                        raise ValueError("%s is not a directory (is a %s)" % ((prev + name), file_type_map[inode.header.inode_type]))
                     prev += name + "/"
                     last = path[len(prev):]
                     cur_dir = self._read_dir_data(inode)
@@ -278,7 +280,7 @@ class SquashfsImage(object):
         if header.inode_type in changed_size_inodes:
 
             #symlinks
-            if file_type_map[header.inode_type] == 'Symlink'::
+            if file_type_map[header.inode_type] == 'Symlink':
                 char_size = len(u8)
                 repr(inode) # for realy create the inode members (cstruct2py works lazy)
                 inode_size = len(data) - len(inode.target_path) + inode.target_size*char_size
