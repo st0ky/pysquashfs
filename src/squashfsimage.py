@@ -3,8 +3,10 @@ from math import ceil
 from .types import *
 from .compression import comp_map, comp_options_map, comp_str_map
 
+
 class SquashfsImage(object):
     """docstring for SquashfsImage"""
+
     def __init__(self, path):
         super(SquashfsImage, self).__init__()
         self.path = os.path.realpath(path)
@@ -30,10 +32,11 @@ class SquashfsImage(object):
 
         self.comp = comp_map[self.superblock.compression_id]()
 
-        #read the compression options (if COMPRESSOR_OPTIONS is set)
+        # read the compression options (if COMPRESSOR_OPTIONS is set)
         if (self.superblock.flags & COMPRESSOR_OPTIONS) and (self.superblock.compression_id in comp_options_map):
-        
-            self.comp_options = comp_options_map[self.superblock.compression_id](self.fil.read(len(comp_options_map[self.superblock.compression_id])))
+
+            self.comp_options = comp_options_map[self.superblock.compression_id](
+                self.fil.read(len(comp_options_map[self.superblock.compression_id])))
 
     def get_all_pathes(self):
         pass
@@ -46,9 +49,9 @@ class SquashfsImage(object):
         perms = inode.header.permission
         b = bin(perms)
         p_str = ''
-        for i in xrange(1,10):
+        for i in xrange(1, 10):
             if b[-i] == '1':
-                p_str = permission_map[i%3] + p_str
+                p_str = permission_map[i % 3] + p_str
             else:
                 p_str = '-' + p_str
         return perms, p_str
@@ -57,7 +60,7 @@ class SquashfsImage(object):
         filename, inode = self._get_inode_by_path(path)
         return self._read_ids(inode)
 
-    def modification_time(self, path = False):
+    def modification_time(self, path=False):
         if path:
             filename, inode = self._get_inode_by_path(path)
             date = inode.header.modification_time
@@ -76,7 +79,7 @@ class SquashfsImage(object):
         else:
             return int(inode.nlink)
 
-    def get_xattr(self, path, name = ''):
+    def get_xattr(self, path, name=''):
         filename, inode = self._get_inode_by_path(path)
 
         if not is_extended_map[inode.header.inode_type] or inode.xattr_index == 0xffffffff:
@@ -90,7 +93,7 @@ class SquashfsImage(object):
         else:
             return sorted(xattrs.keys())
 
-    def size(self, path = False, frmt = 'b', sparse = True):
+    def size(self, path=False, frmt='b', sparse=True):
         if path:
             filename, inode = self._get_inode_by_path(path)
             if (file_type_map[inode.header.inode_type] == 'File') or (file_type_map[inode.header.inode_type] == 'Directory'):
@@ -122,7 +125,8 @@ class SquashfsImage(object):
         if file_type_map[inode.header.inode_type] != "File":
             raise ValueError("%s is not a file" % (path))
         if offset > inode.file_size:
-            raise ValueError("File offset %s is out of the file %s" % (offset, filename))
+            raise ValueError(
+                "File offset %s is out of the file %s" % (offset, filename))
 
         r_block = inode.blocks_start
         start = offset / self.superblock.block_size
@@ -144,31 +148,31 @@ class SquashfsImage(object):
                 #   sparse support
                 if inode.block_sizes[i] == 0:
                     if sparse / self.superblock.block_size:
-                        data += chr(0x00)*self.superblock.block_size
+                        data += chr(0x00) * self.superblock.block_size
                         saprse -= self.superblock.block_size
                         continue
                     else:
-                        data += chr(0x00)*(sparse % self.superblock.block_size)
+                        data += chr(0x00) * (sparse %
+                                    self.superblock.block_size)
                         saprse -= sparse % self.superblock.block_size
                         continue
                 else:
-                    print inode.block_sizes[i]
-                    data += self._read_data_block(r_block, inode.block_sizes[i])
+                    data += self._read_data_block(r_block,
+                                                  inode.block_sizes[i])
             r_block += inode.block_sizes[i] & DATA_BLOCK_SIZE_MASK
 
         #   read the tail (another datablock or a fragment) if exist
         if ((len(data) + offset) < inode.file_size) and (len(data) < size) and (inode.fragment_block_index == 0xffffffff):
             #   sparse support
-                if inode.block_sizes[i] == 0:
-                    if sparse / self.superblock.block_size:
-                        data += chr(0x00)*self.superblock.block_size
-                        saprse -= self.superblock.block_size
-                    else:
-                        data += chr(0x00)*(sparse % self.superblock.block_size)
-                        saprse -= sparse % self.superblock.block_size
+            if inode.block_sizes[i + 1] == 0:
+                if sparse / self.superblock.block_size:
+                    data += chr(0x00) * self.superblock.block_size
+                    saprse -= self.superblock.block_size
                 else:
-                    print inode.block_sizes[i+1]
-                    data += self._read_data_block(r_block, inode.block_sizes[i+1])
+                    data += chr(0x00) * (sparse % self.superblock.block_size)
+                    saprse -= sparse % self.superblock.block_size
+            else:
+                data += self._read_data_block(r_block, inode.block_sizes[i+1])
         if len(data) < size and inode.fragment_block_index != 0xffffffff:
             data += self._read_fregment(inode)
 
@@ -203,6 +207,9 @@ class SquashfsImage(object):
             return cur_dir
         else:
             return sorted(cur_dir.keys())
+
+    def close(self):
+        self.fil.close()
 
     def _get_inode_by_path(self, path):
 
@@ -286,25 +293,25 @@ class SquashfsImage(object):
         header = inode_header(data)
         inode = inode_map[header.inode_type](data)
 
-        #changed size inodes (files and symlinks)
+        # changed size inodes (files and symlinks)
         if header.inode_type in changed_size_inodes:
 
-            #symlinks
+            # symlinks
             if file_type_map[header.inode_type] == 'Symlink':
                 char_size = len(u8)
                 repr(inode) # for realy create the inode members (cstruct2py works lazy)
                 inode_size = len(data) - len(inode.target_path) + inode.target_size*char_size
-                #basic symlink
+                # basic symlink
                 if header.inode_type == BASIC_SYMLINK:
                     data = data[:inode_size-1]
                     inode = inode_map[header.inode_type](data)
-                #extended symlink
+                # extended symlink
                 else:
                     index_size = len(u32)
                     inode = inode_map[header.inode_type](data[:-index_size-1])
                     inode.xattr_index = int(type(inode.xattr_index)(data[-index_size+1:]))
 
-            #files
+            # files
             if file_type_map[header.inode_type] == 'File':
                 blocks_num = int(ceil(inode.file_size / float(self.superblock.block_size))) # max num, not always the real num
                 if inode.fragment_block_index == 0xffffffff and inode.file_size % self.superblock.block_size:
