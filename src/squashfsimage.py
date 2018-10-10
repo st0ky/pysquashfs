@@ -1,13 +1,24 @@
 import sys
+import os
 from math import ceil
 from .types import *
 from .compression import comp_map, comp_options_map, comp_str_map
 
 
 class SquashfsImage(object):
-    """docstring for SquashfsImage"""
+    """SquashfsImage(path) -> squashfs file system object.
+
+    open a squashfs file system image, which located in the path argument.
+    after creating a SquashfsImage object it is possible to get dir lists,
+    files content, files extended attributs and more info and data by calling
+    to the right methodes.
+
+    """
 
     def __init__(self, path):
+        """x.__init__(path) initializes all the internal attributes of x such
+        as file, and cache."""
+
         super(SquashfsImage, self).__init__()
         self.path = os.path.realpath(path)
         self._block_cache = {}
@@ -15,6 +26,7 @@ class SquashfsImage(object):
         self._fragment_entry_cache = {}
         self._ids_cache = {}
         self._xattr_cache = {}
+        self._export_table_cache = {}
 
         self.fil = open(self.path)
 
@@ -45,6 +57,10 @@ class SquashfsImage(object):
         return comp_str_map[self.superblock.compression_id]
 
     def permission(self, path):
+        """x.permission(path) -> touple
+        return the permission of the given item as int and as a string
+        (in the 'rwxrwxrwx' format)."""
+
         filename, inode = self._get_inode_by_path(path)
         perms = inode.header.permission
         b = bin(perms)
@@ -57,6 +73,9 @@ class SquashfsImage(object):
         return perms, p_str
 
     def owner(self, path):
+        """x.owner(path) -> dictionary
+        return dictionary with the keys 'gid' and 'uid', and their values as int."""
+
         filename, inode = self._get_inode_by_path(path)
         return self._read_ids(inode)
 
@@ -69,17 +88,31 @@ class SquashfsImage(object):
         return int(date)
 
     def type(self, path):
+        """x.type(path) -> string
+        containig the type of the given item ('File', 'Directory', etc)."""
+
         filename, inode = self._get_inode_by_path(path)
         return file_type_map[inode.header.inode_type]
 
     def linked(self, path):
+        """x.linked(path) -> int
+        the number of hard links to the given path."""
+
         filename, inode = self._get_inode_by_path(path)
         if inode.header.inode_type == BASIC_FILE:
             return 1
         else:
             return int(inode.nlink)
 
-    def get_xattr(self, path, name=''):
+    def get_xattr(self, path, name = ''):
+        """x.get_xattrs(path[,name = '']) -> list, string or dictionary
+        if name == '', return a list of all the extended attributes names of the
+        given path (default). if name is name of extended attribute of the given
+        path, the methode return the value of that xattr as string.
+        if name == 'a' or 'all' the methode return adictionary with the xattrs
+        names as keys and their value as value.
+        in any other case the behavior is as the default"""
+
         filename, inode = self._get_inode_by_path(path)
 
         if not is_extended_map[inode.header.inode_type] or inode.xattr_index == 0xffffffff:
@@ -94,6 +127,12 @@ class SquashfsImage(object):
             return sorted(xattrs.keys())
 
     def size(self, path=False, frmt='b', sparse=True):
+        """x.size(path[, frmt = 'b'][, sparse = True]) -> float
+        works only on files and directories. return the size of the
+        given item located in path. frmt is the format of the size
+        ('b' = bytes, 'k' = kilobyts, etc). sparse indicate whether or
+        not to calculate the size including the sparse size (if exist) or not."""
+
         if path:
             filename, inode = self._get_inode_by_path(path)
             if (file_type_map[inode.header.inode_type] == 'File') or (file_type_map[inode.header.inode_type] == 'Directory'):
@@ -112,13 +151,17 @@ class SquashfsImage(object):
         elif frmt == 'k' or frmt == 'K':
             size = float("%.3f" % (size / (1024.0)))
         elif frmt == 'b' or frmt == 'B':
-            size = int(size)
+            size = float(size)
         else:
             raise ValueError("Invalid size format : %s", frmt)
 
         return size
 
     def get_file_content(self, path, size=-1, offset=0, sparse=False):
+        """x.get_file_content(path[, size = -1][, offset][, sparse]) -> string
+        read at most size bytes of the given file (in path) from the given
+        offset. if sparse is True, the return string will be filled with null
+        byte where it has to be."""
 
         filename, inode = self._get_inode_by_path(path)
 
@@ -179,6 +222,13 @@ class SquashfsImage(object):
         return data[offset:size+offset]
         
     def list_dir(self, path, inodes = False):
+        """x.list_dir(path[, inodes = False]) -> list
+        return a sorted list of the items located in the given path.
+        the inodes argument is only for internal uses of the object (whether
+        or not to add the inodes of the items. in such case the return type
+        is dictionary)."""
+
+        path = os.path.normpath(path)
         prev = ""
         last = path
         if path.startswith("squashfs-root/"):
@@ -209,10 +259,21 @@ class SquashfsImage(object):
             return sorted(cur_dir.keys())
 
     def close(self):
+        """x.close() -> None. close the squashfs image file."""
         self.fil.close()
 
-    def _get_inode_by_path(self, path):
+    def get_inode_disk_location(self, inode_number):
+        """x.get_inode_disk_location(inode_number) -> touple
+        return the disk location of a given inode number via block offset (from
+        the start of the inode table), and (uncompressed) offset within the metadata
+        block. for use in export (via NFS, etc)."""
+        inode_r = self._read_from_index(self._export_table_cache, inode_number, inode_ref,\
+                                 self.superblock.export_table_start, self.superblock.inode_count)
 
+        return inode_r.block_offset, inode_r.offset
+
+    def _get_inode_by_path(self, path):
+        path = os.path.normpath(path)
         filename = path[path.rfind("/")+1:]
         path = path[:path.rfind("/")+1]
 
@@ -226,16 +287,18 @@ class SquashfsImage(object):
         return filename, inodes[filename]
 
 
-    def _read_dir_data(self, inode):
+    def _read_dir_data(self, inode, inodes = True):
         data = self._read_metadata(self.superblock.directory_table_start + inode.start_block, inode.file_size, inode.offset)
         header = directory_header(data)
         offset = len(header)
         items = {}
         for _ in xrange(header.count+1):
             tmp = directory_entry(data, offset)
-            name_size = 0
-            i = self._read_inode(header.start_block, tmp.offset)
-            items[data[offset + len(tmp): offset + len(tmp) + tmp.size + 1]] = i
+            if inodes:
+                i = self._read_inode(header.start_block, tmp.offset)
+                items[data[offset + len(tmp): offset + len(tmp) + tmp.size + 1]] = i
+            else:
+                items[data[offset + len(tmp): offset + len(tmp) + tmp.size + 1]] = tmp
             offset += len(tmp) + tmp.size + 1
 
         return items
