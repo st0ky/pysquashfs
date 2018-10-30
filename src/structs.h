@@ -179,7 +179,7 @@ typedef struct extendeddirectory {
     u32 file_size;
     u32 start_block;
     u32 parent_inode_number;
-    u16 index_count;
+    u16 index_count;        // ???
     u16 offset;
     u32 xattr_index;
 } extended_directory;

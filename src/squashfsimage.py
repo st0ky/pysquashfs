@@ -104,6 +104,19 @@ class SquashfsImage(object):
         else:
             return int(inode.nlink)
 
+    def symlink(self, path):
+        """x.symlink(path) -> str
+        return the path the symlink is pointing to."""
+        filename, inode = self._get_inode_by_path(path)
+        if file_type_map[inode.header.inode_type] != 'Symlink':
+            raise ValueError("%s is not a symlink (is a %s)" % (path, file_type_map[inode.header.inode_type]))
+        target_path = ''
+        for i in inode.target_path:
+            target_path += str(i)[1]
+        return target_path        
+
+        
+
     def get_xattr(self, path, name = ''):
         """x.get_xattrs(path[,name = '']) -> list, string or dictionary
         if name == '', return a list of all the extended attributes names of the
